@@ -185,13 +185,15 @@
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('input')">👥 이름 입력</button>
   <button class="tab-btn" onclick="switchTab('result')">📋 배정표</button>
-  <button class="tab-btn" onclick="switchTab('guide')">📖 사용 안내</button>
+  <button class="tab-btn" onclick="switchTab('weather')">🌤️ 날씨</button>
+  <button class="tab-btn" onclick="switchTab('guide')">📖 안내</button>
 </div>
 
 <div id="tab-input" class="section active">
   <div class="card">
     <div class="card-title">⏱ 교대 시간 선택</div>
     <div class="iv-row">
+      <button class="iv-btn" id="iv10" onclick="setIv(10,true)">10분<small>6교대/시간</small></button>
       <button class="iv-btn" id="iv15" onclick="setIv(15,true)">15분<small>4교대/시간</small></button>
       <button class="iv-btn on" id="iv20" onclick="setIv(20,true)">20분<small>3교대/시간</small></button>
     </div>
@@ -265,11 +267,11 @@
   <div class="card">
     <div class="card-title">① 교대 시간 선택</div>
     <div style="font-size:.78rem;color:#374151;line-height:1.85;margin-bottom:6px;">
-      상단에서 <strong>15분</strong>(4교대/시간) 또는 <strong>20분</strong>(3교대/시간)을 선택합니다.
+      상단에서 <strong>10분</strong>(6교대/시간), <strong>15분</strong>(4교대/시간), <strong>20분</strong>(3교대/시간)을 선택합니다.
     </div>
     <div style="background:var(--blue-p);border-radius:8px;padding:9px 11px;font-size:.75rem;color:var(--blue);line-height:1.7;">
-      💡 인원이 많을수록 <strong>15분</strong>을 권장합니다.<br>
-      모든 인원이 전시대를 최소 1회 받으려면 타임 수가 충분해야 합니다.
+      💡 인원이 많거나 날씨가 좋지않을 경우 <strong>10분 혹은 15분</strong>을 권장합니다.<br>
+      모든 인원이 전시대를 참여하기 위해서는 타임 수가 충분해야 합니다.
     </div>
   </div>
 
@@ -334,6 +336,66 @@
 
 </div>
 
+<!-- ══════════════ 날씨 탭 ══════════════ -->
+<div id="tab-weather" class="section">
+
+  <!-- 위치 선택 카드 -->
+  <div class="card">
+    <div class="card-title">📍 위치 선택 및 날씨 불러오기</div>
+    <div style="font-size:.73rem;color:var(--gray);margin-bottom:10px;line-height:1.7;">
+      도시를 선택하거나 현재 위치를 감지한 뒤 <strong style="color:var(--blue)">날씨 불러오기</strong>를 눌러주세요.<br>
+      <strong>Open-Meteo · ECMWF</strong> 국제기상모델 데이터를 사용합니다.
+    </div>
+    <div style="display:flex;gap:7px;margin-bottom:9px;">
+      <select id="w-city" onchange="onCityChange()"
+        style="flex:1;padding:9px 8px;border-radius:9px;border:1.5px solid var(--border);font-size:.85rem;background:#fff;color:#1f2937;">
+        <option value="안성">안성</option>
+        <option value="서울">서울</option>
+        <option value="인천">인천</option>
+        <option value="수원">수원</option>
+        <option value="평택">평택</option>
+        <option value="천안">천안</option>
+        <option value="대전">대전</option>
+        <option value="청주">청주</option>
+        <option value="대구">대구</option>
+        <option value="전주">전주</option>
+        <option value="광주">광주</option>
+        <option value="울산">울산</option>
+        <option value="창원">창원</option>
+        <option value="부산">부산</option>
+        <option value="제주">제주</option>
+      </select>
+      <button onclick="useGeoLocation()"
+        style="padding:9px 11px;border:1.5px solid var(--blue);border-radius:9px;background:var(--blue-p);color:var(--blue);font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">
+        📡 현재위치
+      </button>
+    </div>
+    <button class="btn btn-p" onclick="fetchWeather()">🔄 날씨 불러오기</button>
+    <div id="w-status" style="font-size:.72rem;margin-top:8px;line-height:1.7;min-height:18px;"></div>
+  </div>
+
+  <!-- 오늘 날씨 카드 -->
+  <div class="card">
+    <div class="card-title">📅 오늘 날씨 안내</div>
+    <div id="weather-today-preview"
+      style="background:var(--gray-p);border-radius:10px;padding:13px 14px;font-size:.84rem;line-height:2.1;white-space:pre-line;color:#6b7280;border:1.5px solid var(--border);min-height:60px;word-break:keep-all;">
+      날씨를 먼저 불러주세요.
+    </div>
+    <button id="w-copy-today" class="capture-btn" style="margin-top:10px;margin-bottom:0;" onclick="copyWeatherDay('today')">📋 오늘 날씨 복사</button>
+  </div>
+
+  <!-- 내일 날씨 카드 -->
+  <div class="card">
+    <div class="card-title">📅 내일 날씨 안내</div>
+    <div id="weather-tomorrow-preview"
+      style="background:var(--gray-p);border-radius:10px;padding:13px 14px;font-size:.84rem;line-height:2.1;white-space:pre-line;color:#6b7280;border:1.5px solid var(--border);min-height:60px;word-break:keep-all;">
+      날씨를 먼저 불러주세요.
+    </div>
+    <button id="w-copy-tomorrow" class="capture-btn" style="margin-top:10px;margin-bottom:0;" onclick="copyWeatherDay('tomorrow')">📋 내일 날씨 복사</button>
+  </div>
+
+</div>
+
 <script>
 // ─── 상태 ───────────────────────────────────────────────
 let persons  = Array.from({length:10}, ()=>({name:'', gender:''}));
@@ -344,7 +406,7 @@ let roster   = [];
 // ─── 교대시간 토글 ──────────────────────────────────────
 function setIv(v, doSave) {
   iv = v;
-  [15,20].forEach(x => document.getElementById('iv'+x).classList.toggle('on', x===v));
+  [10,15,20].forEach(x => document.getElementById('iv'+x).classList.toggle('on', x===v));
   if (doSave) save();
 }
 
@@ -854,7 +916,7 @@ function generateNormal(filled) {
       const missed = filled.filter(p=>!(isOdd&&p.oi===0)&&!canCover.has(p.oi)).map(p=>p.name);
       if (missed.length > 0) {
         html += `<div class="warn">⚠️ <strong>${iv}분 교대(${R}타임)${trainee?' + 훈련 1회':''}로 인해 타임이 부족합니다.</strong><br>
-        <strong>${missed.join(', ')}</strong>은(는) 전시대 배정을 받지 못할 수 있습니다. <strong>15분 교대</strong>를 사용하시면 모든 인원이 전시대를 받을 수 있습니다.</div>`;
+        <strong>${missed.join(', ')}</strong>은(는) 전시대 배정을 받지 못할 수 있습니다. <strong>10분 또는 15분 교대</strong>를 사용하시면 모든 인원이 전시대를 받을 수 있습니다.</div>`;
       }
     }
   })();
@@ -1219,8 +1281,177 @@ function switchTab(name) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  document.querySelectorAll('.tab-btn')[['input','result','guide'].indexOf(name)].classList.add('active');
+  document.querySelectorAll('.tab-btn')[['input','result','weather','guide'].indexOf(name)].classList.add('active');
+  if (name === 'weather' && !wDayTexts[0]) fetchWeather();
   window.scrollTo(0,0);
+}
+
+// ─── 날씨 자동 불러오기 ─────────────────────────────────
+const CITY_COORDS = {
+  '안성': [37.0088, 127.2696], '서울': [37.5665, 126.9780],
+  '인천': [37.4563, 126.7052], '수원': [37.2636, 127.0286],
+  '평택': [36.9922, 127.1122], '천안': [36.8065, 127.1523],
+  '대전': [36.3504, 127.3845], '청주': [36.6424, 127.4890],
+  '대구': [35.8714, 128.6014], '전주': [35.8242, 127.1480],
+  '광주': [35.1595, 126.8526], '울산': [35.5384, 129.3114],
+  '창원': [35.2280, 128.6811], '부산': [35.1796, 129.0756],
+  '제주': [33.4890, 126.4983],
+};
+const DAYS_KO = ['일','월','화','수','목','금','토'];
+let wLat = 37.0088, wLon = 127.2696, wCityName = '안성';
+let wDayTexts = ['', ''];
+
+function wmoToSky(code) {
+  if (code === 0)                      return '맑음 ☀️';
+  if (code === 1)                      return '구름 조금 🌤️';
+  if (code === 2)                      return '구름 많음 ⛅';
+  if (code === 3)                      return '흐림 🌥️';
+  if ([45,48].includes(code))          return '안개 🌫️';
+  if ([51,53,55].includes(code))       return '이슬비 🌦️';
+  if ([61,63,65].includes(code))       return '비 🌧️';
+  if ([71,73,75,77].includes(code))    return '눈 🌨️';
+  if ([80,81,82].includes(code))       return '소나기 ⛈️';
+  if ([85,86].includes(code))          return '눈 소나기 🌨️';
+  if ([95,96,99].includes(code))       return '뇌우 ⛈️';
+  return '흐림 🌥️';
+}
+
+function wWindDesc(kph) {
+  if (kph < 10) return '바람이 거의 없겠습니다.';
+  if (kph < 25) return '약한 바람이 불겠습니다.';
+  if (kph < 40) return '보통 바람이 불겠습니다.';
+  return '강한 바람이 불겠습니다.';
+}
+
+function wHumidDesc(avg) {
+  if (avg >= 80) return '매우 높아 무더위가 심하게 느껴질 것으로 예상됩니다.';
+  if (avg >= 65) return '높아 다소 후텁지근할 것으로 예상됩니다.';
+  if (avg >= 50) return '적당한 편입니다.';
+  return '낮아 건조한 편입니다.';
+}
+
+function buildDayText(d, label) {
+  const tempStr = d.tmin === d.tmax
+    ? `약 ${d.tmin}°C`
+    : `약 ${d.tmin}~${d.tmax}°C`;
+  const humStr = d.hmin === d.hmax
+    ? `${d.hmin}%`
+    : `${d.hmin}~${d.hmax}%`;
+  const avgH = (d.hmin + d.hmax) / 2;
+
+  let t = `[${label} 날씨 안내]\n`;
+  t += `🌤️ 날씨: ${d.sky}\n`;
+  t += `🌡️ 기온: ${tempStr}\n`;
+  t += `💧 습도: ${humStr} 정도로 ${wHumidDesc(avgH)}\n`;
+  t += `🌬️ 바람: ${wWindDesc(d.windKph)}`;
+  if (d.rain > 0) t += `\n☔ 비: 강수확률이 ${d.rain}%로 예보되어 있습니다.`;
+
+  const cl = [];
+  if      (d.rain >= 40) cl.push('날씨 예보에 따르면 봉사 시간 중 비가 내릴 수도 있으니 우산을 챙겨주세요.');
+  else if (d.rain > 0)   cl.push('강수확률이 낮지만, 혹시 모르니 우산을 가볍게 챙기셔도 좋겠습니다.');
+  if      (d.tmax >= 28) cl.push('무더운 날씨가 예상되니, 더위에 대비한 옷차림과 충분한 수분 섭취를 권장드립니다!');
+  else if (d.tmax <= 5)  cl.push('매우 추운 날씨가 예상되니, 따뜻한 방한 옷차림을 꼭 챙겨 주세요!');
+  else if (d.tmax <= 15) cl.push('쌀쌀한 날씨가 예상되니, 따뜻한 옷차림을 챙겨주세요.');
+
+  if (cl.length) t += '\n\n' + cl.join('\n');
+  return t;
+}
+
+function setWStatus(msg, color) {
+  const el = document.getElementById('w-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--gray)'; }
+}
+
+async function fetchWeather() {
+  setWStatus('⏳ 날씨 정보를 불러오는 중...', 'var(--blue)');
+  const todayEl    = document.getElementById('weather-today-preview');
+  const tomorrowEl = document.getElementById('weather-tomorrow-preview');
+
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast`
+      + `?latitude=${wLat}&longitude=${wLon}`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min`
+      + `,precipitation_probability_max,windspeed_10m_max`
+      + `,relative_humidity_2m_max,relative_humidity_2m_min`
+      + `&timezone=Asia%2FSeoul&forecast_days=2`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const dd = json.daily;
+
+    const base = new Date();
+    const labels = [0, 1].map(i => {
+      const dt = new Date(base);
+      dt.setDate(dt.getDate() + i);
+      return `${dt.getMonth()+1}월 ${dt.getDate()}일(${DAYS_KO[dt.getDay()]}) ${i===0?'오늘':'내일'}`;
+    });
+
+    const days = [0, 1].map(i => ({
+      sky:     wmoToSky(dd.weathercode[i]),
+      tmin:    Math.round(dd.temperature_2m_min[i]),
+      tmax:    Math.round(dd.temperature_2m_max[i]),
+      hmin:    Math.round(dd.relative_humidity_2m_min?.[i] ?? dd.relative_humidity_2m_max[i] * 0.8),
+      hmax:    Math.round(dd.relative_humidity_2m_max[i]),
+      windKph: Math.round(dd.windspeed_10m_max[i]),
+      rain:    Math.round(dd.precipitation_probability_max[i]),
+    }));
+
+    wDayTexts = days.map((d, i) => buildDayText(d, labels[i]));
+
+    if (todayEl)    { todayEl.textContent    = wDayTexts[0]; todayEl.style.color    = '#1f2937'; }
+    if (tomorrowEl) { tomorrowEl.textContent = wDayTexts[1]; tomorrowEl.style.color = '#1f2937'; }
+
+    setWStatus(`✅ ${wCityName} 날씨 불러오기 완료 (출처: Open-Meteo · ECMWF 국제기상모델)`, 'var(--green)');
+  } catch(e) {
+    setWStatus('❌ 날씨 불러오기 실패 — 인터넷 연결을 확인해 주세요.', '#b91c1c');
+  }
+}
+
+function onCityChange() {
+  const v = document.getElementById('w-city')?.value;
+  const c = CITY_COORDS[v];
+  if (c) { wLat = c[0]; wLon = c[1]; wCityName = v; }
+}
+
+function useGeoLocation() {
+  if (!navigator.geolocation) {
+    setWStatus('❌ 이 기기에서 위치 감지가 지원되지 않습니다.', '#b91c1c'); return;
+  }
+  setWStatus('📡 현재 위치를 감지하는 중...', 'var(--blue)');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      wLat = pos.coords.latitude; wLon = pos.coords.longitude; wCityName = '현재 위치';
+      document.getElementById('w-city').value = '';
+      fetchWeather();
+    },
+    () => setWStatus('❌ 위치 감지 실패 — 도시를 직접 선택해 주세요.', '#b91c1c')
+  );
+}
+
+async function copyWeatherDay(which) {
+  const idx  = which === 'today' ? 0 : 1;
+  const text = wDayTexts[idx];
+  const btnId = which === 'today' ? 'w-copy-today' : 'w-copy-tomorrow';
+  const btn   = document.getElementById(btnId);
+  if (!text) { alert('먼저 날씨를 불러주세요.'); return; }
+  const label = which === 'today' ? '📋 오늘 날씨 복사' : '📋 내일 날씨 복사';
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = '✅ 복사됐습니다!'; btn.classList.add('copied');
+  } catch(e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      btn.textContent = '✅ 복사됐습니다!'; btn.classList.add('copied');
+    } catch(e2) {
+      btn.textContent = '❌ 복사 실패'; btn.classList.add('error');
+    }
+  }
+  clearTimeout(btn._wt);
+  btn._wt = setTimeout(() => { btn.textContent = label; btn.classList.remove('copied','error'); }, 2000);
 }
 
 // ─── 초기화 ────────────────────────────────────────────

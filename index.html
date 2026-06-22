@@ -374,24 +374,43 @@
     <div id="w-status" style="font-size:.72rem;margin-top:8px;line-height:1.7;min-height:18px;"></div>
   </div>
 
-  <!-- 오늘 날씨 카드 -->
-  <div class="card">
-    <div class="card-title">📅 오늘 날씨 안내</div>
-    <div id="weather-today-preview"
-      style="background:var(--gray-p);border-radius:10px;padding:13px 14px;font-size:.84rem;line-height:2.1;white-space:pre-line;color:#6b7280;border:1.5px solid var(--border);min-height:60px;word-break:keep-all;">
-      날씨를 먼저 불러주세요.
+  <!-- 경보 카드 (경보 있을 때만 표시) -->
+  <div id="w-alert-card" class="card" style="display:none;border-left:4px solid #b91c1c;">
+    <div class="card-title" style="color:#b91c1c;">⚠️ 기상특보 (예상 기준)</div>
+    <div id="w-alert-content" style="font-size:.82rem;line-height:1.95;margin-bottom:10px;"></div>
+    <div style="font-size:.67rem;color:var(--gray);margin-bottom:9px;line-height:1.6;">
+      ※ Open-Meteo 데이터 기반 예상치입니다. 공식 특보는 <strong>기상청(weather.go.kr)</strong>에서 확인하세요.
     </div>
-    <button id="w-copy-today" class="capture-btn" style="margin-top:10px;margin-bottom:0;" onclick="copyWeatherDay('today')">📋 오늘 날씨 복사</button>
+    <button id="w-alert-copy-btn" class="capture-btn" style="margin-bottom:0;" onclick="copyAlerts()">📋 경보 내용 복사</button>
   </div>
 
-  <!-- 내일 날씨 카드 -->
-  <div class="card">
-    <div class="card-title">📅 내일 날씨 안내</div>
-    <div id="weather-tomorrow-preview"
-      style="background:var(--gray-p);border-radius:10px;padding:13px 14px;font-size:.84rem;line-height:2.1;white-space:pre-line;color:#6b7280;border:1.5px solid var(--border);min-height:60px;word-break:keep-all;">
-      날씨를 먼저 불러주세요.
+  <!-- 폭염 운영 기준 (항상 표시) -->
+  <div class="card" style="border-left:4px solid #f97316;">
+    <div class="card-title" style="color:#c2410c;">🔥 폭염 시 봉사 운영 기준</div>
+    <div style="font-size:.81rem;color:#374151;line-height:1.95;">
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:7px;">
+        <span style="background:#fef3c7;border-radius:5px;padding:2px 8px;font-weight:700;font-size:.76rem;color:#b45309;white-space:nowrap;flex-shrink:0;">폭염주의보</span>
+        <span>오후 2~4시 구역 — <strong>인도자가 취소 여부 결정</strong></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <span style="background:#fee2e2;border-radius:5px;padding:2px 8px;font-weight:700;font-size:.76rem;color:#b91c1c;white-space:nowrap;flex-shrink:0;">폭염&nbsp;&nbsp;경보</span>
+        <span>오후 2~4시 · 오후 4~6시 구역 — <strong>취소</strong></span>
+      </div>
     </div>
-    <button id="w-copy-tomorrow" class="capture-btn" style="margin-top:10px;margin-bottom:0;" onclick="copyWeatherDay('tomorrow')">📋 내일 날씨 복사</button>
+  </div>
+
+  <!-- 오늘 날씨 -->
+  <div class="card">
+    <div class="card-title">📅 오늘 날씨</div>
+    <div id="w-today-slots" style="color:var(--gray);font-size:.82rem;text-align:center;padding:16px 0;">날씨를 먼저 불러주세요.</div>
+    <button id="w-today-all-btn" class="capture-btn" style="display:none;margin-top:6px;margin-bottom:0;" onclick="copyAllDay(0)">📋 오늘 전체 복사</button>
+  </div>
+
+  <!-- 내일 날씨 -->
+  <div class="card">
+    <div class="card-title">📅 내일 날씨</div>
+    <div id="w-tomorrow-slots" style="color:var(--gray);font-size:.82rem;text-align:center;padding:16px 0;">날씨를 먼저 불러주세요.</div>
+    <button id="w-tomorrow-all-btn" class="capture-btn" style="display:none;margin-top:6px;margin-bottom:0;" onclick="copyAllDay(1)">📋 내일 전체 복사</button>
   </div>
 
 </div>
@@ -1297,66 +1316,188 @@ const CITY_COORDS = {
   '창원': [35.2280, 128.6811], '부산': [35.1796, 129.0756],
   '제주': [33.4890, 126.4983],
 };
-const DAYS_KO = ['일','월','화','수','목','금','토'];
+const DAYS_KO  = ['일','월','화','수','목','금','토'];
+const W_HOURS  = [7, 14, 16, 18];
+const W_LABELS = ['오전 7시', '오후 2시', '오후 4시', '오후 6시'];
+const W_EMOJIS = ['🕖', '🕑', '🕓', '🕕'];
+
 let wLat = 37.0088, wLon = 127.2696, wCityName = '안성';
-let wDayTexts = ['', ''];
+let wDayTexts  = ['', ''];             // 전체 복사용
+let wSlotTexts = [['','','',''],['','','','']]; // 시간별 복사용
+let wAlertText = '';
 
-function wmoToSky(code) {
-  if (code === 0)                      return '맑음 ☀️';
-  if (code === 1)                      return '구름 조금 🌤️';
-  if (code === 2)                      return '구름 많음 ⛅';
-  if (code === 3)                      return '흐림 🌥️';
-  if ([45,48].includes(code))          return '안개 🌫️';
-  if ([51,53,55].includes(code))       return '이슬비 🌦️';
-  if ([61,63,65].includes(code))       return '비 🌧️';
-  if ([71,73,75,77].includes(code))    return '눈 🌨️';
-  if ([80,81,82].includes(code))       return '소나기 ⛈️';
-  if ([85,86].includes(code))          return '눈 소나기 🌨️';
-  if ([95,96,99].includes(code))       return '뇌우 ⛈️';
-  return '흐림 🌥️';
+// ── WMO 코드 → 한국어 날씨 ──
+function wmoToDesc(code) {
+  if (code === 0)                   return { emoji:'☀️',  sky:'맑음',          clear:true  };
+  if (code === 1)                   return { emoji:'🌤️', sky:'대체로 맑음',    clear:true  };
+  if (code === 2)                   return { emoji:'🌤️', sky:'구름이 많은 편', clear:false };
+  if (code === 3)                   return { emoji:'🌥️', sky:'흐림',          clear:false };
+  if ([45,48].includes(code))       return { emoji:'🌫️', sky:'안개',          clear:false };
+  if ([51,53,55].includes(code))    return { emoji:'🌦️', sky:'이슬비',        clear:false };
+  if ([61,63,65].includes(code))    return { emoji:'🌧️', sky:'비',            clear:false };
+  if ([71,73,75,77].includes(code)) return { emoji:'🌨️', sky:'눈',            clear:false };
+  if ([80,81,82].includes(code))    return { emoji:'⛈️', sky:'소나기',        clear:false };
+  if ([85,86].includes(code))       return { emoji:'🌨️', sky:'눈 소나기',     clear:false };
+  if ([95,96,99].includes(code))    return { emoji:'⛈️', sky:'뇌우',          clear:false };
+  return { emoji:'🌥️', sky:'흐림', clear:false };
 }
 
-function wWindDesc(kph) {
-  if (kph < 10) return '바람이 거의 없겠습니다.';
-  if (kph < 25) return '약한 바람이 불겠습니다.';
-  if (kph < 40) return '보통 바람이 불겠습니다.';
-  return '강한 바람이 불겠습니다.';
+// ── 기상특보 기준 파생 (KMA 기준 적용) ──
+function deriveAlerts(h, dayIdx, dayLabel) {
+  const start  = dayIdx * 24;
+  const alerts = [];
+
+  // 낮 시간대(9~18시) 최고기온 → 폭염
+  let maxTemp = -99;
+  for (let i = 9; i <= 18; i++) maxTemp = Math.max(maxTemp, h.temperature_2m[start + i] ?? -99);
+  if      (maxTemp >= 35) alerts.push({ type:'폭염', level:'경보',  icon:'🔴', desc:`최고기온 ${Math.round(maxTemp)}°C (기준: 35°C 이상)` });
+  else if (maxTemp >= 33) alerts.push({ type:'폭염', level:'주의보', icon:'🟠', desc:`최고기온 ${Math.round(maxTemp)}°C (기준: 33°C 이상)` });
+
+  // 강수량 3h/12h 누적 → 호우
+  const prec = Array.from({length:24}, (_, i) => h.precipitation?.[start + i] ?? 0);
+  let max3h = 0, max12h = 0;
+  for (let i = 0; i < 22; i++) max3h  = Math.max(max3h,  prec[i]+prec[i+1]+prec[i+2]);
+  for (let i = 0; i < 13; i++) max12h = Math.max(max12h, prec.slice(i,i+12).reduce((a,b)=>a+b,0));
+  if      (max3h >= 90 || max12h >= 180) alerts.push({ type:'호우', level:'경보',  icon:'🔴', desc:`3시간 최대 ${max3h.toFixed(1)}mm (기준: 90mm 이상)` });
+  else if (max3h >= 60 || max12h >= 110) alerts.push({ type:'호우', level:'주의보', icon:'🟠', desc:`3시간 최대 ${max3h.toFixed(1)}mm (기준: 60mm 이상)` });
+
+  // 최대 풍속 → 강풍
+  let maxWind = 0;
+  for (let i = 0; i < 24; i++) maxWind = Math.max(maxWind, h.windspeed_10m?.[start + i] ?? 0);
+  if      (maxWind >= 56) alerts.push({ type:'강풍', level:'경보',  icon:'🔴', desc:`최대 ${Math.round(maxWind)}km/h (기준: 56km/h 이상)` });
+  else if (maxWind >= 40) alerts.push({ type:'강풍', level:'주의보', icon:'🟠', desc:`최대 ${Math.round(maxWind)}km/h (기준: 40km/h 이상)` });
+
+  return alerts.map(a => ({ ...a, dayLabel }));
 }
 
-function wHumidDesc(avg) {
-  if (avg >= 80) return '매우 높아 무더위가 심하게 느껴질 것으로 예상됩니다.';
-  if (avg >= 65) return '높아 다소 후텁지근할 것으로 예상됩니다.';
-  if (avg >= 50) return '적당한 편입니다.';
-  return '낮아 건조한 편입니다.';
+// ── 경보 카드 렌더링 ──
+function renderAlerts(all) {
+  const card      = document.getElementById('w-alert-card');
+  const cont      = document.getElementById('w-alert-content');
+
+  if (!card || !cont) return;
+  if (!all.length) { card.style.display = 'none'; wAlertText = ''; return; }
+  card.style.display = 'block';
+  let html = '', text = '⚠️ 기상특보 안내 (예상 기준)\n';
+  all.forEach(a => {
+    const c = a.level === '경보' ? '#b91c1c' : '#e07b00';
+    html += `<div style="display:flex;gap:7px;align-items:flex-start;margin-bottom:6px;">
+      <span style="font-size:.82rem;font-weight:700;color:${c};white-space:nowrap;">${a.icon} ${a.type}${a.level}</span>
+      <span style="font-size:.78rem;color:#374151;line-height:1.55;">${a.dayLabel}<br>${a.desc}</span>
+    </div>`;
+    text += `${a.icon} [${a.dayLabel}] ${a.type}${a.level}: ${a.desc}\n`;
+  });
+  cont.innerHTML = html;
+  wAlertText = text + '※ Open-Meteo 데이터 기반 예상치. 공식 특보는 기상청(weather.go.kr) 확인 요망.';
 }
 
-function buildDayText(d, label) {
-  const tempStr = d.tmin === d.tmax
-    ? `약 ${d.tmin}°C`
-    : `약 ${d.tmin}~${d.tmax}°C`;
-  const humStr = d.hmin === d.hmax
-    ? `${d.hmin}%`
-    : `${d.hmin}~${d.hmax}%`;
-  const avgH = (d.hmin + d.hmax) / 2;
+// ── 시간대 슬롯 카드 렌더링 ──
+function renderDaySlots(containerId, slots, dayIdx) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = slots.map((s, i) => {
+    const body        = buildSlotBody(s);
+    const borderColor = s.rain >= 50 ? '#3b82f6' : s.rain >= 30 ? '#60a5fa' : 'var(--border)';
+    return `
+    <div style="background:#fff;border-radius:11px;padding:11px 13px;margin-bottom:9px;border:1.5px solid ${borderColor};box-shadow:0 1px 4px rgba(0,0,0,.07);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:.88rem;color:var(--blue);">${W_EMOJIS[i]} ${W_LABELS[i]}</span>
+        <button id="w-slot-${dayIdx}-${i}" onclick="copySlot(${dayIdx},${i})"
+          style="padding:4px 12px;border-radius:8px;font-size:.72rem;font-weight:700;border:none;
+                 background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;cursor:pointer;transition:all .18s;">
+          📋 복사
+        </button>
+      </div>
+      <div style="font-size:.77rem;color:#374151;line-height:2;background:var(--gray-p);border-radius:8px;padding:9px 11px;white-space:pre-line;">
+        ${body}
+      </div>
+    </div>`;
+  }).join('');
+  const allBtn = document.getElementById(dayIdx === 0 ? 'w-today-all-btn' : 'w-tomorrow-all-btn');
+  if (allBtn) allBtn.style.display = 'flex';
+}
 
-  let t = `[${label} 날씨 안내]\n`;
-  t += `🌤️ 날씨: ${d.sky}\n`;
-  t += `🌡️ 기온: ${tempStr}\n`;
-  t += `💧 습도: ${humStr} 정도로 ${wHumidDesc(avgH)}\n`;
-  t += `🌬️ 바람: ${wWindDesc(d.windKph)}`;
-  if (d.rain > 0) t += `\n☔ 비: 강수확률이 ${d.rain}%로 예보되어 있습니다.`;
+// ── 슬롯 본문 생성 (새 포맷) ──
+function buildSlotBody(s) {
+  const lines = [];
 
-  const cl = [];
-  if      (d.rain >= 40) cl.push('날씨 예보에 따르면 봉사 시간 중 비가 내릴 수도 있으니 우산을 챙겨주세요.');
-  else if (d.rain > 0)   cl.push('강수확률이 낮지만, 혹시 모르니 우산을 가볍게 챙기셔도 좋겠습니다.');
-  if      (d.tmax >= 28) cl.push('무더운 날씨가 예상되니, 더위에 대비한 옷차림과 충분한 수분 섭취를 권장드립니다!');
-  else if (d.tmax <= 5)  cl.push('매우 추운 날씨가 예상되니, 따뜻한 방한 옷차림을 꼭 챙겨 주세요!');
-  else if (d.tmax <= 15) cl.push('쌀쌀한 날씨가 예상되니, 따뜻한 옷차림을 챙겨주세요.');
+  // 날씨
+  lines.push(`${s.skyEmoji} 날씨: ${s.sky}`);
 
-  if (cl.length) t += '\n\n' + cl.join('\n');
+  // 기온
+  lines.push(`🌡️ 기온: 약 ${s.temp}°C`);
+
+  // 습도
+  let humidDesc;
+  if      (s.humid >= 80) humidDesc = '매우 높아 끈적끈적하고 불쾌지수가 높겠습니다.';
+  else if (s.humid >= 60) humidDesc = '다소 높아 후텁지근하게 느껴질 수 있습니다.';
+  else if (s.humid >= 45) humidDesc = '적당한 편으로 비교적 쾌적한 날씨입니다.';
+  else                    humidDesc = '낮아 건조하게 느껴질 수 있으니 수분 보충에 신경 써주세요.';
+  lines.push(`💧 습도: ${s.humid}% 정도로 ${humidDesc}`);
+
+  // 바람
+  let windStr;
+  if      (s.windKph >= 56) windStr = '매우 강한 바람이 불겠습니다. 안전에 각별히 주의해 주세요. 💨';
+  else if (s.windKph >= 40) windStr = '강한 바람이 불 수 있으니 주의해 주세요. 💨';
+  else if (s.windKph >= 20) windStr = '다소 강한 바람이 불겠습니다.';
+  else if (s.windKph >= 10) windStr = '약간의 바람이 불겠습니다.';
+  else                      windStr = '바람은 거의 없겠습니다.';
+  lines.push(`🌬️ 바람: ${windStr}`);
+
+  // 강수
+  const isSnow = s.sky.includes('눈');
+  if (s.rain > 0) {
+    let rainStr;
+    if (isSnow) {
+      if      (s.rain >= 70) rainStr = `강수확률이 ${s.rain}%로 눈이 내릴 가능성이 높습니다. 미끄럼에 주의하고 따뜻하게 입어주세요. ❄️`;
+      else if (s.rain >= 30) rainStr = `강수확률이 ${s.rain}%로 눈이 내릴 수 있으니 미끄럼에 주의해 주세요. ❄️`;
+      else                   rainStr = `강수확률이 ${s.rain}%로 눈 올 가능성은 낮지만 미끄럼에 주의하세요.`;
+    } else {
+      if      (s.rain >= 70) rainStr = `강수확률이 ${s.rain}%로 예보되어 있습니다. 비가 내릴 가능성이 매우 높으니 우산을 반드시 챙겨주세요. ☔`;
+      else if (s.rain >= 50) rainStr = `강수확률이 ${s.rain}%로 예보되어 있습니다. 봉사 시간 중 비가 내릴 수도 있으니 우산을 꼭 챙겨주세요. ☔`;
+      else if (s.rain >= 30) rainStr = `강수확률이 ${s.rain}%로 예보되어 있습니다. 봉사 시간 중 비가 내릴 수도 있으니 참고해 주세요.`;
+      else                   rainStr = `강수확률이 ${s.rain}%로 낮지만 우산을 가볍게 챙기셔도 좋겠습니다.`;
+    }
+    lines.push(`☔ 비: ${rainStr}`);
+  }
+
+  // 자외선 (맑고 더울 때)
+  if (s.clear && s.temp >= 25) {
+    lines.push(`☀️ 자외선: 기온이 높고 맑아 자외선이 강합니다. 선크림과 모자를 챙겨주세요.`);
+  }
+
+  // 마무리 문장
+  let closing = '';
+  if      (s.temp >= 35) closing = '🔥 폭염 수준의 무더위입니다. 수분 섭취와 그늘 휴식을 꼭 취해 주세요!';
+  else if (s.temp >= 30) closing = '매우 더운 날씨가 예상되니, 더위에 대비한 충분한 수분 섭취와 시원한 옷차림을 권장드립니다. 🥤';
+  else if (s.temp >= 27) closing = '무더운 날씨가 예상되니, 더위에 대비한 옷차림을 고려하실 수 있겠습니다!';
+  else if (s.temp >= 18) closing = '활동하기 좋은 기온입니다. 봉사에 임하시기 좋은 날씨입니다!';
+  else if (s.temp >= 12) closing = '다소 쌀쌀한 날씨입니다. 얇은 겉옷을 챙기시면 좋겠습니다.';
+  else if (s.temp >=  5) closing = '꽤 추운 날씨입니다. 따뜻한 옷차림을 꼭 챙겨주세요.';
+  else                   closing = '매우 추운 날씨입니다. 방한에 각별히 신경 써주세요. 🧥';
+
+  // 고온+고습 추가
+  if (s.temp >= 27 && s.humid >= 70) {
+    closing += ' 습도가 높아 체감온도가 더 높게 느껴질 수 있습니다.';
+  }
+
+  return lines.join('\n') + '\n\n' + closing;
+}
+
+// ── 텍스트 빌드 ──
+function buildSlotText(s, slotLabel, dayLabel) {
+  const body = buildSlotBody(s);
+  return `[${dayLabel} ${slotLabel} 날씨 안내]\n` + body;
+}
+
+function buildAllDayText(slotTexts, label, alerts) {
+  let t = `[${label} 날씨 안내]`;
+  if (alerts.length) t += '\n⚠️ ' + alerts.map(a=>`${a.type}${a.level}`).join(', ') + ' 예상';
+  t += '\n\n' + slotTexts.join('\n\n──────────────\n\n');
   return t;
 }
 
+// ── 날씨 불러오기 ──
 function setWStatus(msg, color) {
   const el = document.getElementById('w-status');
   if (el) { el.textContent = msg; el.style.color = color || 'var(--gray)'; }
@@ -1364,45 +1505,51 @@ function setWStatus(msg, color) {
 
 async function fetchWeather() {
   setWStatus('⏳ 날씨 정보를 불러오는 중...', 'var(--blue)');
-  const todayEl    = document.getElementById('weather-today-preview');
-  const tomorrowEl = document.getElementById('weather-tomorrow-preview');
-
   try {
     const url = `https://api.open-meteo.com/v1/forecast`
       + `?latitude=${wLat}&longitude=${wLon}`
-      + `&daily=weathercode,temperature_2m_max,temperature_2m_min`
-      + `,precipitation_probability_max,windspeed_10m_max`
-      + `,relative_humidity_2m_max,relative_humidity_2m_min`
+      + `&hourly=temperature_2m,relative_humidity_2m,precipitation_probability`
+      + `,windspeed_10m,weathercode,precipitation`
       + `&timezone=Asia%2FSeoul&forecast_days=2`;
 
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    const dd = json.daily;
+    const h = (await res.json()).hourly;
 
     const base = new Date();
-    const labels = [0, 1].map(i => {
-      const dt = new Date(base);
-      dt.setDate(dt.getDate() + i);
+    const labels = [0,1].map(i => {
+      const dt = new Date(base); dt.setDate(dt.getDate() + i);
       return `${dt.getMonth()+1}월 ${dt.getDate()}일(${DAYS_KO[dt.getDay()]}) ${i===0?'오늘':'내일'}`;
     });
 
-    const days = [0, 1].map(i => ({
-      sky:     wmoToSky(dd.weathercode[i]),
-      tmin:    Math.round(dd.temperature_2m_min[i]),
-      tmax:    Math.round(dd.temperature_2m_max[i]),
-      hmin:    Math.round(dd.relative_humidity_2m_min?.[i] ?? dd.relative_humidity_2m_max[i] * 0.8),
-      hmax:    Math.round(dd.relative_humidity_2m_max[i]),
-      windKph: Math.round(dd.windspeed_10m_max[i]),
-      rain:    Math.round(dd.precipitation_probability_max[i]),
-    }));
+    const days = [0,1].map(dayIdx =>
+      W_HOURS.map(hour => {
+        const idx  = dayIdx * 24 + hour;
+        const desc = wmoToDesc(h.weathercode[idx]);
+        return {
+          skyEmoji: desc.emoji,
+          sky:      desc.sky,
+          clear:    desc.clear,
+          temp:     Math.round(h.temperature_2m[idx]),
+          humid:    Math.round(h.relative_humidity_2m[idx]),
+          windKph:  Math.round(h.windspeed_10m[idx]),
+          rain:     Math.round(h.precipitation_probability[idx]),
+        };
+      })
+    );
 
-    wDayTexts = days.map((d, i) => buildDayText(d, labels[i]));
+    const alerts = [0,1].map(di => deriveAlerts(h, di, labels[di]));
 
-    if (todayEl)    { todayEl.textContent    = wDayTexts[0]; todayEl.style.color    = '#1f2937'; }
-    if (tomorrowEl) { tomorrowEl.textContent = wDayTexts[1]; tomorrowEl.style.color = '#1f2937'; }
+    wSlotTexts = days.map((slots, di) =>
+      slots.map((s, si) => buildSlotText(s, W_LABELS[si], labels[di]))
+    );
+    wDayTexts = [0,1].map(i => buildAllDayText(wSlotTexts[i], labels[i], alerts[i]));
 
-    setWStatus(`✅ ${wCityName} 날씨 불러오기 완료 (출처: Open-Meteo · ECMWF 국제기상모델)`, 'var(--green)');
+    renderDaySlots('w-today-slots',    days[0], 0);
+    renderDaySlots('w-tomorrow-slots', days[1], 1);
+    renderAlerts(alerts[0].concat(alerts[1]));
+
+    setWStatus(`✅ ${wCityName} 날씨 완료 (출처: Open-Meteo · ECMWF 국제기상모델)`, 'var(--green)');
   } catch(e) {
     setWStatus('❌ 날씨 불러오기 실패 — 인터넷 연결을 확인해 주세요.', '#b91c1c');
   }
@@ -1415,9 +1562,7 @@ function onCityChange() {
 }
 
 function useGeoLocation() {
-  if (!navigator.geolocation) {
-    setWStatus('❌ 이 기기에서 위치 감지가 지원되지 않습니다.', '#b91c1c'); return;
-  }
+  if (!navigator.geolocation) { setWStatus('❌ 위치 감지 미지원 기기입니다.', '#b91c1c'); return; }
   setWStatus('📡 현재 위치를 감지하는 중...', 'var(--blue)');
   navigator.geolocation.getCurrentPosition(
     pos => {
@@ -1429,29 +1574,38 @@ function useGeoLocation() {
   );
 }
 
-async function copyWeatherDay(which) {
-  const idx  = which === 'today' ? 0 : 1;
-  const text = wDayTexts[idx];
-  const btnId = which === 'today' ? 'w-copy-today' : 'w-copy-tomorrow';
-  const btn   = document.getElementById(btnId);
-  if (!text) { alert('먼저 날씨를 불러주세요.'); return; }
-  const label = which === 'today' ? '📋 오늘 날씨 복사' : '📋 내일 날씨 복사';
+// ── 복사 공통 헬퍼 ──
+async function wCopyText(text, btn, resetLabel) {
+  if (!text || !btn) { alert('먼저 날씨를 불러주세요.'); return; }
+  const ok = async () => { btn.textContent = '✅ 복사됐습니다!'; btn.classList.add('copied'); };
+  const ng = ()       => { btn.textContent = '❌ 복사 실패';     btn.classList.add('error'); };
   try {
-    await navigator.clipboard.writeText(text);
-    btn.textContent = '✅ 복사됐습니다!'; btn.classList.add('copied');
+    await navigator.clipboard.writeText(text); await ok();
   } catch(e) {
     try {
       const ta = document.createElement('textarea');
       ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
       document.body.appendChild(ta); ta.focus(); ta.select();
-      document.execCommand('copy'); document.body.removeChild(ta);
-      btn.textContent = '✅ 복사됐습니다!'; btn.classList.add('copied');
-    } catch(e2) {
-      btn.textContent = '❌ 복사 실패'; btn.classList.add('error');
-    }
+      document.execCommand('copy'); document.body.removeChild(ta); await ok();
+    } catch(e2) { ng(); }
   }
-  clearTimeout(btn._wt);
-  btn._wt = setTimeout(() => { btn.textContent = label; btn.classList.remove('copied','error'); }, 2000);
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = resetLabel; btn.classList.remove('copied','error'); }, 2000);
+}
+
+async function copySlot(dayIdx, slotIdx) {
+  const btn = document.getElementById(`w-slot-${dayIdx}-${slotIdx}`);
+  await wCopyText(wSlotTexts[dayIdx]?.[slotIdx], btn, '📋 복사');
+}
+
+async function copyAllDay(dayIdx) {
+  const id  = dayIdx === 0 ? 'w-today-all-btn' : 'w-tomorrow-all-btn';
+  const lbl = dayIdx === 0 ? '📋 오늘 전체 복사' : '📋 내일 전체 복사';
+  await wCopyText(wDayTexts[dayIdx], document.getElementById(id), lbl);
+}
+
+async function copyAlerts() {
+  await wCopyText(wAlertText, document.getElementById('w-alert-copy-btn'), '📋 경보 내용 복사');
 }
 
 // ─── 초기화 ────────────────────────────────────────────
